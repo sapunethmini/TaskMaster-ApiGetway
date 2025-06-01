@@ -1,0 +1,121 @@
+server:
+  port: 8080  # Changed from 8081 to avoid conflict with backend
+
+spring:
+  application:
+    name: api-gateway
+  cloud:
+    gateway:
+      discovery:
+        locator:
+          enabled: true
+          lower-case-service-id: true
+      routes:
+        # Backend Service Routes
+        - id: backend-service
+          uri: lb://BACKEND-SERVICE
+          predicates:
+            - Path=/api/backend/**
+          filters:
+            - StripPrefix=2  # Removes /api/backend from the path
+
+        # Task Management Service Routes
+        - id: task-manage-service
+          uri: lb://TASK-MANAGE-SERVICE
+          predicates:
+            - Path=/api/tasks/**
+          filters:
+            - StripPrefix=2  # Removes /api/tasks from the path
+
+        # Notification Service Routes
+        - id: notification-service
+          uri: lb://NOTIFICATION-SERVICE
+          predicates:
+            - Path=/api/notifications/**
+          filters:
+            - StripPrefix=2  # Removes /api/notifications from the path
+
+        # User Service Routes (if you have separate user service)
+        - id: user-service
+          uri: lb://USER-SERVICE
+          predicates:
+            - Path=/api/users/**
+          filters:
+            - StripPrefix=2
+
+        # Authentication Routes (usually handled by backend)
+        - id: auth-service
+          uri: lb://BACKEND-SERVICE
+          predicates:
+            - Path=/api/auth/**
+          filters:
+            - StripPrefix=2
+
+        # Health Check Routes (for monitoring)
+        - id: health-backend
+          uri: lb://BACKEND-SERVICE
+          predicates:
+            - Path=/health/backend/**
+          filters:
+            - StripPrefix=2
+
+        - id: health-tasks
+          uri: lb://TASK-MANAGE-SERVICE
+          predicates:
+            - Path=/health/tasks/**
+          filters:
+            - StripPrefix=2
+
+        - id: health-notifications
+          uri: lb://NOTIFICATION-SERVICE
+          predicates:
+            - Path=/health/notifications/**
+          filters:
+            - StripPrefix=2
+
+      # Global CORS Configuration
+      globalcors:
+        cors-configurations:
+          '[/**]':
+            allowedOrigins:
+              - "http://localhost:3000"  # React frontend
+              - "http://localhost:4200"  # Angular frontend
+            allowedMethods:
+              - GET
+              - POST
+              - PUT
+              - DELETE
+              - OPTIONS
+            allowedHeaders: "*"
+            allowCredentials: true
+
+# Eureka Client Configuration
+eureka:
+  client:
+    register-with-eureka: true
+    fetch-registry: true
+    service-url:
+      defaultZone: http://eureka-server:8761/eureka  # Changed for Docker
+  instance:
+    prefer-ip-address: true
+    instance-id: ${spring.application.name}:${spring.application.instance_id:${random.value}}
+
+# Management endpoints for monitoring
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,gateway
+  endpoint:
+    health:
+      show-details: always
+    gateway:
+      enabled: true
+
+# Logging configuration
+logging:
+  level:
+    org.springframework.cloud.gateway: DEBUG
+    org.springframework.cloud.netflix.eureka: DEBUG
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss} - %msg%n"
